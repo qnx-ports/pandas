@@ -15,7 +15,8 @@ import shutil
 import sys
 from sysconfig import get_config_vars
 
-import numpy
+if 'QNX_TARGET' not in os.environ:
+    import numpy
 from pkg_resources import parse_version
 from setuptools import (
     Command,
@@ -556,7 +557,7 @@ for name, data in ext_data.items():
 
     sources.extend(data.get("sources", []))
 
-    include = ["pandas/_libs/include", numpy.get_include()]
+    include = ["pandas/_libs/include"]
 
     undef_macros = []
 
@@ -593,6 +594,16 @@ if suffix == ".pyx":
             root, _ = os.path.splitext(ext.sources[0])
             ext.sources[0] = root + suffix
 
+if 'QNX_TARGET' in os.environ:
+    pandas_include_dirs = [
+        "pandas/_libs/include",
+    ]
+else:
+    pandas_include_dirs = [
+        "pandas/_libs/include",
+        numpy.get_include(),
+    ]
+
 ujson_ext = Extension(
     "pandas._libs.json",
     depends=[
@@ -608,10 +619,7 @@ ujson_ext = Extension(
             "pandas/_libs/src/vendored/ujson/lib/ultrajsondec.c",
         ]
     ),
-    include_dirs=[
-        "pandas/_libs/include",
-        numpy.get_include(),
-    ],
+    include_dirs=pandas_include_dirs,
     extra_compile_args=(extra_compile_args),
     extra_link_args=extra_link_args,
     define_macros=macros,
@@ -635,10 +643,7 @@ pd_dt_ext = Extension(
             "pandas/_libs/src/datetime/pd_datetime.c",
         ]
     ),
-    include_dirs=[
-        "pandas/_libs/include",
-        numpy.get_include(),
-    ],
+    include_dirs=pandas_include_dirs,
     extra_compile_args=(extra_compile_args),
     extra_link_args=extra_link_args,
     define_macros=macros,
@@ -661,9 +666,7 @@ pd_parser_ext = Extension(
             "pandas/_libs/src/parser/pd_parser.c",
         ]
     ),
-    include_dirs=[
-        "pandas/_libs/include",
-    ],
+    include_dirs=pandas_include_dirs,
     extra_compile_args=(extra_compile_args),
     extra_link_args=extra_link_args,
     define_macros=macros,
@@ -679,8 +682,12 @@ extensions.append(pd_parser_ext)
 if __name__ == "__main__":
     # Freeze to support parallel compilation when using spawn instead of fork
     multiprocessing.freeze_support()
+    if 'QNX_TARGET' in os.environ:
+        FULLVERSION = os.environ.get('PANDAS_VERSION')
+    else:
+        FULLVERSION = versioneer.get_version()
     setup(
-        version=versioneer.get_version(),
+        version=FULLVERSION,
         ext_modules=maybe_cythonize(extensions, compiler_directives=directives),
         cmdclass=cmdclass,
     )
